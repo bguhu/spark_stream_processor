@@ -5,3 +5,4 @@ requests
 pandas
 pyspark==2.4.6
 livy==0.8.0
+python-geoip
