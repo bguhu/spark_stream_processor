@@ -11,7 +11,6 @@ import textwrap
 if __name__ == "__main__":
     """
         To run this Python script you need to install requirements.txt first.
-     
     """
 
     config_dict = {
@@ -32,14 +31,12 @@ if __name__ == "__main__":
 
     with LivySession.create(url=LIVY_URL, spark_conf=config_dict, 
     py_files=['https://files.pythonhosted.org/packages/df/59/3f611ecca70bc91959e3e1ec325f7835d15cc35585af71dbc6c1123be48e/python-geoip-geolite2-2015.0303.tar.gz'],
-    #jars=["https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/2.4.1/kafka-clients-2.4.1.jar"],
-    #archives=["https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/2.4.1/kafka-clients-2.4.1.jar"]
     ) as session:
         code= textwrap.dedent(f"""
             from pyspark.sql.functions import from_json, col, to_date, row_number, lit
             from pyspark.sql.window import Window
 
-            
+                    
             df = spark \
             .readStream \
             .format("kafka") \
@@ -49,13 +46,10 @@ if __name__ == "__main__":
             .option("subscribe", "log-messages") \
             .load()
   
-  
-            data_schema = StructType([
-                StructField("a", IntegerType())
-                
-                ])
-            
+            # to reach optimal partitioning size of 20-30gb per orc file, we use this window
+            # to add a partitioning column
             partition_window = Window().orderBy(lit('1'))
+            # to filter non valid log lines
             valid_log_line_cond = (col("host").isNotNull() 
                 | col("host").isNotNull() 
                 | col("method").isNotNull() 
@@ -64,8 +58,12 @@ if __name__ == "__main__":
                 | col("size").isNotNull()) 
 
             tmp_df=df.dropDuplicates().select(
+                # convert kafka data payload from json to structtype
                 from_json(col("value").cast("string")).alias("payload"),
+                # select both timestamp and date columns (date is used to partition on daily basis)
                 col("timestamp"), to_date("timestamp").alias("date"), 
+                # create a part named partitioning column that could take values from 0 to 4 to
+                # partition the daily 100G files to 5 partitions
                 (row_number().over(w) % F.lit(5)).alias("part")).select(
                     col("payload.host").alias("host"), 
                     col("payload.method").alias("method"), 
