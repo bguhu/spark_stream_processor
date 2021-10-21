@@ -56,8 +56,14 @@ if __name__ == "__main__":
                 ])
             
             partition_window = Window().orderBy(lit('1'))
+            valid_log_line_cond = (col("host").isNotNull() 
+                | col("host").isNotNull() 
+                | col("method").isNotNull() 
+                | col("path").isNotNull() 
+                | col("code").isNotNull() 
+                | col("size").isNotNull()) 
 
-            tmp_df=df.select("*").select(
+            tmp_df=df.dropDuplicates().select(
                 from_json(col("value").cast("string")).alias("payload"),
                 col("timestamp"), to_date("timestamp").alias("date"), 
                 (row_number().over(w) % F.lit(5)).alias("part")).select(
@@ -67,12 +73,13 @@ if __name__ == "__main__":
                     col("payload.code").alias("code").cast("short"), 
                     col("payload.size").alias("size").cast("int"), 
                     col("date"), col("part"), col("timestamp")
-                )
+                ).filter(valid_log_line_cond)
                 
 
             result = tmp_df.writeStream.format("orc").option("checkpointLocation", "{CHECKPOINTS}")\
                 .option("{DATA_PATH}", "log_data.orc")
                 .partitionBy("date", "part").start()
+            
             result.awaitTermination()
             
     """)
