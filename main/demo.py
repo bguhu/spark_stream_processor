@@ -18,7 +18,7 @@ if __name__ == "__main__":
         'spark.app.name':'Streaming Log Processor App',
         'spark.jars.packages':'org.apache.spark:spark-sql-kafka-0-10_2.12:3.0.0-preview,org.apache.kafka:kafka-clients:2.3.1',
         'partition.assignment.strategy': 'range',
-        'kafka.partition.assignment.strategy':'range'
+        'kafka.partition.assignment.strategy':'range',
     }
     
 
@@ -31,10 +31,14 @@ if __name__ == "__main__":
 
 
     with LivySession.create(url=LIVY_URL, spark_conf=config_dict, 
+    py_files=['https://files.pythonhosted.org/packages/df/59/3f611ecca70bc91959e3e1ec325f7835d15cc35585af71dbc6c1123be48e/python-geoip-geolite2-2015.0303.tar.gz'],
     #jars=["https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/2.4.1/kafka-clients-2.4.1.jar"],
     #archives=["https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/2.4.1/kafka-clients-2.4.1.jar"]
     ) as session:
         code= textwrap.dedent(f"""
+            from pyspark.sql.functions import from_json, col, to_date, row_number, lit
+            from pyspark.sql.window import Window
+
             
             df = spark \
             .readStream \
@@ -46,10 +50,30 @@ if __name__ == "__main__":
             .load()
   
   
-            result=df.select("*").selectExpr("cast(value as string)")
-            res = result.writeStream.format("orc").option("checkpointLocation", "{CHECKPOINTS}")\
-                .option("{DATA_PATH}", "log_data.orc").start()
-            res.awaitTermination()
+            data_schema = StructType([
+                StructField("a", IntegerType())
+                
+                ])
+            
+            partition_window = Window().orderBy(lit('1'))
+
+            tmp_df=df.select("*").select(
+                from_json(col("value").cast("string")).alias("payload"),
+                col("timestamp"), to_date("timestamp").alias("date"), 
+                (row_number().over(w) % F.lit(5)).alias("part")).select(
+                    col("payload.host").alias("host"), 
+                    col("payload.method").alias("method"), 
+                    col("payload.path").alias("path"), 
+                    col("payload.code").alias("code").cast("short"), 
+                    col("payload.size").alias("size").cast("int"), 
+                    col("date"), col("part"), col("timestamp")
+                )
+                
+
+            result = tmp_df.writeStream.format("orc").option("checkpointLocation", "{CHECKPOINTS}")\
+                .option("{DATA_PATH}", "log_data.orc")
+                .partitionBy("date", "part").start()
+            result.awaitTermination()
             
     """)
 

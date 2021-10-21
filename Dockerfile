@@ -2,9 +2,9 @@ FROM python:3.8.5
 
 RUN apt-get clean && apt-get update \
         && apt-get install -y build-essential unzip \
-        && wget -O Spark-stream-processor.zip https://github.com/bguhu/spark_stream_processor/archive/master.zip \
+        && wget -O Spark-stream-processor.zip https://github.com/bguhu/spark_stream_processor/archive/main.zip \
         && unzip Spark-stream-processor.zip \
-        && mv spark_stream_processor-master /spark_stream_processor \
+        && mv spark_stream_processor-main /spark_stream_processor \
         && rm Spark-stream-processor.zip \
         && cd spark_stream_processor \
         && pip install -r requirements.txt \
