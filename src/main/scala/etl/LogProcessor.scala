@@ -17,14 +17,12 @@ import org.apache.livy.{Job, JobContext}
 
 //import org.apache.spark.implicits._
 
-class LogProcessor extends Job[Int] {
+class LogProcessor extends Job[Unit] {
 
-  override def call(jc: JobContext): Int = {
+  override def call(jc: JobContext): Unit = {
 
     val spark: SparkSession = jc.sparkSession()
     import spark.implicits._
-
-    val topic = "topic"
 
     val ds1 = spark
       .readStream
@@ -34,11 +32,11 @@ class LogProcessor extends Job[Int] {
       .option("startingOffsets", "earliest") // equivalent of auto.offset.reset which is not allowed here
       .load() //.as[(String, String)]
 
-    val nonempty_log_line_cond = (col("host").isNotNull()
-      || col("method").isNotNull()
-      || col("path").isNotNull()
-      || col("code").isNotNull()
-      || col("size").isNotNull())
+    val nonempty_log_line_cond = (col("host").isNotNull
+      || col("method").isNotNull
+      || col("path").isNotNull
+      || col("code").isNotNull
+      || col("size").isNotNull)
 
     val schema = new StructType()
       .add("host", StringType)
@@ -82,12 +80,7 @@ class LogProcessor extends Job[Int] {
       .partitionBy("date", "hour")
       .start()
 
-
-    //.start()
     res.awaitTermination()
     spark.stop()
-
-    println("*** done")
-    1
   }
 }

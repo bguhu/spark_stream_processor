@@ -25,9 +25,27 @@ libraryDependencies += "org.apache.kafka" %% "kafka" % "0.10.0.1"
 
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.8.0"
 
-libraryDependencies += "org.apache.livy" % "livy-client-http" % "0.7.1-incubating"
+libraryDependencies += "org.apache.livy" % "livy-client-http" % "0.6.0-incubating"
 
 
 scalacOptions += "-target:jvm-1.8"
 
-
+//
+//assemblyMergeStrategy in assembly := {
+//  case PathList("javax", "servlet", xs @ _*)         => MergeStrategy.first
+//  case PathList(ps @ _*) if ps.last endsWith ".html" => MergeStrategy.first
+//  case PathList(ps @ _*) if ps.last endsWith "StaticLoggerBinder.class" =>
+//    MergeStrategy.first
+//  case PathList(ps @ _*) if ps.last endsWith "StaticMDCBinder.class" =>
+//    MergeStrategy.first
+//  case PathList(ps @ _*) if ps.last endsWith "StaticMarkerBinder.class" =>
+//    MergeStrategy.first
+//  case PathList(ps @ _*) if ps.last endsWith "io.netty.versions.properties" =>
+//    MergeStrategy.first
+//  case PathList(ps @ _*) if ps.last endsWith "BUILD" => MergeStrategy.first
+//  case "application.conf"                            => MergeStrategy.concat
+//  case "module-info.class"                                => MergeStrategy.discard
+//  case x =>
+//    val oldStrategy = (assemblyMergeStrategy in assembly).value
+//    oldStrategy(x)
+//}
