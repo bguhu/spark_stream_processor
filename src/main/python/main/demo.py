@@ -80,32 +80,57 @@ if __name__ == "__main__":
                 | col("code").isNotNull() 
                 | col("size").isNotNull()) 
 
-            tmp_df = df.select(
-                    # convert kafka data payload from json to structtype
-                    from_json(col("value").cast("string"), schema).alias("payload"),
-                    # select both timestamp and date columns 
-                    # (date is used to partition on daily basis)
-                    col("timestamp"), to_date("timestamp").alias("date"), 
-                ).select(
-                    col("payload.host").alias("host"), 
-                    col("payload.method").alias("method"), 
-                    col("payload.path").alias("path"), 
-                    col("payload.code").alias("code"), 
-                    col("payload.size").alias("size"), 
-                    col("date"), col("timestamp"), hour(col("date")).alias("hour")
-                ).filter(nonempty_log_line_cond)
+            # tmp_df = df.select(
+            #         # convert kafka data payload from json to structtype
+            #         from_json(col("value").cast("string"), schema).alias("payload"),
+            #         # select both timestamp and date columns 
+            #         # (date is used to partition on daily basis)
+            #         col("timestamp"), to_date("timestamp").alias("date"), 
+            #     ).select(
+            #         col("payload.host").alias("host"), 
+            #         col("payload.method").alias("method"), 
+            #         col("payload.path").alias("path"), 
+            #         col("payload.code").alias("code"), 
+            #         col("payload.size").alias("size"), 
+            #         col("date"), col("timestamp"), hour(col("date")).alias("hour")
+            #     ).filter(nonempty_log_line_cond)
 
-            def proc_rdd(iterator):
-                iterator.map(
-                    lambda item : (get_country_code(item._1), item._2, item._3, item._4, item._5, item._6, item._7, item._8)
-                ).toDF(["cc", "method", "path", "code","size","date", "timestamp","hour"]) \
-                .write.outputMode('append').format("orc")\
-                .option("checkpointLocation",  "checkpoints") \
-                .option("path", "/tmp/orc_log_data.orc") \
-                .partitionBy("date", "hour")
-            )
+            def anonymize_rdd(iterator):
+                return iterator.foreach(lambda item : (get_country_code(item._1), item._2, item._3, item._4, item._5, item._6, item._7, item._8))
 
-            result = tmp_df.rdd.forEachRDD(proc_rdd)
+
+            def p(it, time):
+                #print(time)
+                it
+                #return it.foreach(lambda x: x)
+
+            df.rdd.forEachRDD(p)
+
+            spark.streaming.context.awaitTermination()
+
+            #df.awaitTermination()
+            
+            #anonymized_df = tmp_df.rdd.start().forEachRDD(anonymize_rdd).toDF(["cc", "method", "path", "code","size","date", "timestamp","hour"])
+
+            
+            #anonymized_df.awaitTermination()
+            #df.awaitTermination()
+
+
+            # result=anonymized_df.writeStream.start().outputMode('append').format("orc") \
+            #     .option("checkpointLocation",  "checkpoints") \
+            #     .option("path", "/tmp/orc_log_data.orc") \
+            #     .partitionBy("date", "hour")
+
+            
+            # result.writeStream.outputMode('append').format("orc") \
+            # .option("checkpointLocation",  "checkpoints") \
+            # .option("path", "/tmp/orc_log_data.orc") \
+            # .partitionBy("date", "hour")
+                
+            
+                
+
                 
            
             # result = tmp_df.writeStream.outputMode('append').format("orc")\
@@ -113,7 +138,8 @@ if __name__ == "__main__":
             #     .option("path", "/tmp/orc_log_data.orc") \
             #     .partitionBy("date", "hour").start()
 
-            result.awaitTermination()
+            #result.awaitTermination()
+            #df.awaitTermination()
             
     """)
         
